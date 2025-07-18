@@ -7,41 +7,43 @@ export default function RegisterPage() {
   const router = useRouter();
   const [formData, setFormData] = useState({
     username: "",
+    email: "",
     password: "",
-    role: "user", // default role
+    role: "user",
   });
   const [error, setError] = useState("");
 
   const handleChange = (e) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
+    setFormData((prev) => ({ ...prev, [e.target.name]: e.target.value }));
   };
 
-  const handleRegister = (e) => {
+  const handleRegister = async (e) => {
     e.preventDefault();
-    let users = JSON.parse(localStorage.getItem("users")) || [];
+    setError("");
 
-    const userExists = users.some((u) => u.username === formData.username);
+    try {
+      const res = await fetch("/api/users", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ...formData,
+          type: "register", // 👈 indicate to backend it's a registration
+        }),
+      });
 
-    if (userExists) {
-      setError("Username already exists");
-      return;
+      const data = await res.json();
+      console.log(data.user)
+      if (!res.ok) {
+        setError(data.error || "Registration failed");
+        return;
+      }
+      
+      localStorage.setItem("CurrentUser", JSON.stringify(data.user));
+      router.push("/login");
+    } catch (err) {
+      console.error("Register error:", err);
+      setError("Something went wrong. Please try again.");
     }
-
-    const newUser = {
-      id: Date.now(),
-      username: formData.username,
-      password: formData.password,
-      role: formData.role,
-    };
-
-    users.push(newUser);
-    localStorage.setItem("users", JSON.stringify(users));
-    localStorage.setItem("currentUser", JSON.stringify(newUser));
-    router.push("/dashboard");
   };
 
   return (
@@ -49,32 +51,34 @@ export default function RegisterPage() {
       <h1 className={styles.title}>Register</h1>
       <form className={styles.form} onSubmit={handleRegister}>
         <input
-          className={styles.input}
-          type="text"
           name="username"
           placeholder="Username"
-          onChange={handleChange}
           required
+          onChange={handleChange}
+          className={styles.input}
         />
         <input
-          className={styles.input}
-          type="password"
-          name="password"
-          placeholder="Password"
-          onChange={handleChange}
+          name="email"
+          type="email"
+          placeholder="Email"
           required
+          onChange={handleChange}
+          className={styles.input}
         />
-
+        <input
+          name="password"
+          type="password"
+          placeholder="Password"
+          required
+          onChange={handleChange}
+          className={styles.input}
+        />
         <select name="role" onChange={handleChange} className={styles.select}>
           <option value="user">User</option>
           <option value="admin">Admin</option>
         </select>
-
         {error && <p className={styles.error}>{error}</p>}
-
-        <button type="submit" className={styles.btn}>
-          Register
-        </button>
+        <button className={styles.btn} type="submit">Register</button>
       </form>
     </div>
   );

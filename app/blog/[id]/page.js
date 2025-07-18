@@ -2,38 +2,42 @@
 import React, { useEffect, useState } from "react";
 import styles from "../blogview.module.css";
 import { useParams, useRouter } from "next/navigation";
-import { FiArrowLeft, FiEdit2, FiTrash2, FiClock, FiUser } from "react-icons/fi";
+import {
+  FiArrowLeft,
+  FiEdit2,
+  FiTrash2,
+  FiClock,
+  FiUser,
+} from "react-icons/fi";
 import { RiAdminLine } from "react-icons/ri";
 
 export default function BlogViewPage() {
   const params = useParams();
   const router = useRouter();
-  const blogId = parseInt(params.id);
+  const blogId = params.id;
+  console.log("blogId being fetched:", blogId);
+
   const [blog, setBlog] = useState(null);
   const [currentUser, setCurrentUser] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [relatedBlogs, setRelatedBlogs] = useState([]);
 
   useEffect(() => {
-    const user = JSON.parse(localStorage.getItem("currentUser"));
+    const user = JSON.parse(localStorage.getItem("CurrentUser"));
     setCurrentUser(user);
 
-    // Simulate loading for better UX
-    setTimeout(() => {
-      const blogs = JSON.parse(localStorage.getItem("blogs")) || [];
-      const found = blogs.find((b) => b.id === blogId);
-
-      if (!found) {
-        router.push("/dashboard");
-      } else {
-        setBlog(found);
-        // Get 3 random blogs as "related" (excluding current)
-        const otherBlogs = blogs.filter(b => b.id !== blogId);
-        const shuffled = [...otherBlogs].sort(() => 0.5 - Math.random());
-        setRelatedBlogs(shuffled.slice(0, 3));
+    const fetchBlog = async () => {
+      try {
+        const res = await fetch(`/api/blogs/${blogId}`);
+        const data = await res.json();
+        setBlog(data);
+      } catch (err) {
+        console.error("Failed to fetch blog:", err);
+      } finally {
+        setIsLoading(false);
       }
-      setIsLoading(false);
-    }, 800);
+    };
+    fetchBlog();
   }, [blogId]);
 
   const handleDelete = () => {
@@ -46,8 +50,8 @@ export default function BlogViewPage() {
   };
 
   const formatDate = (dateString) => {
-    const options = { year: 'numeric', month: 'long', day: 'numeric' };
-    return new Date(dateString).toLocaleDateString('en-US', options);
+    const options = { year: "numeric", month: "long", day: "numeric" };
+    return new Date(dateString).toLocaleDateString("en-US", options);
   };
 
   if (isLoading) {
@@ -69,20 +73,17 @@ export default function BlogViewPage() {
           <FiArrowLeft size={20} />
           Back to Dashboard
         </button>
-        
+
         {currentUser?.role === "admin" && (
           <div className={styles.adminActions}>
-            <button 
+            <button
               onClick={() => router.push(`/edit-blog/${blog.id}`)}
               className={styles.editButton}
             >
               <FiEdit2 size={18} />
               Edit
             </button>
-            <button 
-              onClick={handleDelete}
-              className={styles.deleteButton}
-            >
+            <button onClick={handleDelete} className={styles.deleteButton}>
               <FiTrash2 size={18} />
               Delete
             </button>
@@ -94,7 +95,7 @@ export default function BlogViewPage() {
       <article className={styles.blogContent}>
         <div className={styles.blogHeader}>
           <h1 className={styles.title}>{blog.title}</h1>
-          
+
           <div className={styles.metaData}>
             <div className={styles.authorInfo}>
               <div className={styles.authorAvatar}>
@@ -115,7 +116,10 @@ export default function BlogViewPage() {
                   <span>
                     {formatDate(blog.createdAt)}
                     {blog.updatedAt && blog.updatedAt !== blog.createdAt && (
-                      <span className={styles.updatedText}> (updated {formatDate(blog.updatedAt)})</span>
+                      <span className={styles.updatedText}>
+                        {" "}
+                        (updated {formatDate(blog.updatedAt)})
+                      </span>
                     )}
                   </span>
                 </div>
@@ -126,18 +130,18 @@ export default function BlogViewPage() {
 
         {blog.image && (
           <div className={styles.featuredImageContainer}>
-            <img 
-              src={blog.image} 
-              alt={blog.title} 
+            <img
+              src={blog.image}
+              alt={blog.title}
               className={styles.featuredImage}
             />
           </div>
         )}
 
         <div className={styles.content}>
-          {blog.content.split('\n\n').map((paragraph, index) => (
+          {blog.content.split("\n\n").map((paragraph, index) => (
             <p key={index} className={styles.paragraph}>
-              {paragraph.split('\n').map((line, i) => (
+              {paragraph.split("\n").map((line, i) => (
                 <React.Fragment key={i}>
                   {line}
                   <br />
@@ -154,8 +158,8 @@ export default function BlogViewPage() {
           <h2 className={styles.relatedTitle}>You might also like</h2>
           <div className={styles.relatedBlogs}>
             {relatedBlogs.map((relatedBlog) => (
-              <div 
-                key={relatedBlog.id} 
+              <div
+                key={relatedBlog.id}
                 className={styles.relatedCard}
                 onClick={() => router.push(`/blog/${relatedBlog.id}`)}
               >

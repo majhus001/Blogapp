@@ -2,51 +2,48 @@
 import React, { useEffect, useState } from "react";
 import styles from "../editblog.module.css";
 import { useRouter, useParams } from "next/navigation";
-import { FiArrowLeft, FiSave, FiImage, FiTrash2 } from "react-icons/fi";
-import { RiAdminLine } from "react-icons/ri";
+import { FiArrowLeft, FiSave } from "react-icons/fi";
 
 export default function EditBlogPage() {
   const router = useRouter();
-  const params = useParams();
-  const blogId = parseInt(params.id);
+  const { id: blogId } = useParams();
 
-  const [user, setUser] = useState(null);
-  const [formData, setFormData] = useState({ 
-    title: "", 
+  const [formData, setFormData] = useState({
+    title: "",
     content: "",
-    image: "",
-    authorName: ""
+    authorName: "",
   });
   const [loading, setLoading] = useState(true);
-  const [previewImage, setPreviewImage] = useState(null);
 
   useEffect(() => {
-    const currentUser = JSON.parse(localStorage.getItem("currentUser"));
+    const currentUser = JSON.parse(localStorage.getItem("CurrentUser"));
     if (!currentUser || currentUser.role !== "admin") {
       router.push("/login");
       return;
     }
-    setUser(currentUser);
 
-    const blogs = JSON.parse(localStorage.getItem("blogs")) || [];
-    const blog = blogs.find((b) => b.id === blogId);
-    if (!blog) {
-      router.push("/dashboard");
-      return;
-    }
+    // Fetch blog from backend
+    const fetchBlog = async () => {
+      try {
+        const res = await fetch(`/api/blogs/${blogId}`);
+        if (!res.ok) throw new Error("Failed to fetch blog");
 
-    setFormData({ 
-      title: blog.title || "", 
-      content: blog.content || "",
-      image: blog.image || "",
-      authorName: blog.authorName || currentUser.username
-    });
-    
-    if (blog.image) {
-      setPreviewImage(blog.image);
-    }
-    
-    setLoading(false);
+        const blog = await res.json();
+
+        setFormData({
+          title: blog.title || "",
+          content: blog.content || "",
+          authorName: blog.authorName || currentUser.username,
+        });
+      } catch (err) {
+        console.error("Error fetching blog:", err);
+        router.push("/dashboard");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchBlog();
   }, [blogId]);
 
   const handleChange = (e) => {
@@ -57,38 +54,25 @@ export default function EditBlogPage() {
     }));
   };
 
-  const handleImageChange = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setPreviewImage(reader.result);
-        setFormData(prev => ({ ...prev, image: reader.result }));
-      };
-      reader.readAsDataURL(file);
-    }
-  };
-
-  const removeImage = () => {
-    setPreviewImage(null);
-    setFormData(prev => ({ ...prev, image: "" }));
-  };
-
-  const handleUpdate = (e) => {
+  const handleUpdate = async (e) => {
     e.preventDefault();
-    const blogs = JSON.parse(localStorage.getItem("blogs")) || [];
-    const updatedBlogs = blogs.map((b) =>
-      b.id === blogId ? { 
-        ...b, 
-        title: formData.title, 
-        content: formData.content,
-        image: formData.image,
-        authorName: formData.authorName,
-        updatedAt: new Date().toISOString()
-      } : b
-    );
-    localStorage.setItem("blogs", JSON.stringify(updatedBlogs));
-    router.push("/dashboard");
+    try {
+      const res = await fetch(`/api/blogs/${blogId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(formData),
+      });
+
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || "Failed to update blog");
+      }
+
+      router.push("/dashboard");
+    } catch (err) {
+      console.error("Update error:", err);
+      alert(err.message || "Failed to update blog");
+    }
   };
 
   if (loading) {
@@ -137,36 +121,6 @@ export default function EditBlogPage() {
             placeholder="Enter author name"
             required
           />
-        </div>
-
-        <div className={styles.formGroup}>
-          <label className={styles.label}>Featured Image</label>
-          <div className={styles.imageUploadContainer}>
-            {previewImage ? (
-              <div className={styles.imagePreviewWrapper}>
-                <img src={previewImage} alt="Preview" className={styles.imagePreview} />
-                <button 
-                  type="button" 
-                  onClick={removeImage}
-                  className={styles.removeImageButton}
-                >
-                  <FiTrash2 size={16} />
-                  Remove
-                </button>
-              </div>
-            ) : (
-              <label className={styles.imageUploadArea}>
-                <FiImage size={24} />
-                <span>Click to upload an image</span>
-                <input
-                  type="file"
-                  accept="image/*"
-                  onChange={handleImageChange}
-                  className={styles.imageInput}
-                />
-              </label>
-            )}
-          </div>
         </div>
 
         <div className={styles.formGroup}>

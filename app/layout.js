@@ -1,5 +1,7 @@
+// app/layout.js or app/layout.jsx
 import "./globals.css";
 import Navbar from "../components/Navbar";
+import SessionWrapper from "../components/SessionWrapper";
 
 export const metadata = {
   title: "Blog App",
@@ -9,9 +11,12 @@ export const metadata = {
 export default function RootLayout({ children }) {
   return (
     <html lang="en">
+      <head /> 
       <body>
-        <Navbar />
-        <main>{children}</main>
+        <SessionWrapper>
+          <Navbar />
+          <main>{children}</main>
+        </SessionWrapper>
       </body>
     </html>
   );

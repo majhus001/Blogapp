@@ -2,8 +2,6 @@
 import React, { useEffect, useState } from "react";
 import styles from "./addblog.module.css";
 import { useRouter } from "next/navigation";
-import { FiArrowLeft, FiSave, FiImage, FiTrash2 } from "react-icons/fi";
-import { RiAdminLine } from "react-icons/ri";
 
 export default function AddBlogPage() {
   const router = useRouter();
@@ -11,166 +9,171 @@ export default function AddBlogPage() {
   const [formData, setFormData] = useState({ 
     title: "", 
     content: "",
-    image: "",
-    authorName: ""
+    authorName: "",
+    category: "",
+    tags: "",
+    isPublished: false,
   });
   const [loading, setLoading] = useState(true);
-  const [previewImage, setPreviewImage] = useState(null);
+  const [error, setError] = useState("");
 
   useEffect(() => {
-    const currentUser = JSON.parse(localStorage.getItem("currentUser"));
-    if (!currentUser || currentUser.role !== "admin") {
-      router.push("/login");
-      return;
+    // Fetch current user from localStorage
+    const currentUser = JSON.parse(localStorage.getItem("CurrentUser"));
+    if (currentUser) {
+      setUser(currentUser);
+      setFormData(prev => ({
+        ...prev,
+        authorName: currentUser.username || ""
+      }));
     }
-    setUser(currentUser);
-    setFormData(prev => ({ ...prev, authorName: currentUser.username }));
     setLoading(false);
   }, []);
 
   const handleChange = (e) => {
-    const { name, value } = e.target;
+    const { name, value, type, checked } = e.target;
     setFormData((prev) => ({
       ...prev,
-      [name]: value,
+      [name]: type === "checkbox" ? checked : value,
     }));
   };
 
-  const handleImageChange = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setPreviewImage(reader.result);
-        setFormData(prev => ({ ...prev, image: reader.result }));
-      };
-      reader.readAsDataURL(file);
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setError("");
+    
+    const payload = {
+      ...formData,
+      tags: formData.tags.split(",").map((tag) => tag.trim()).filter(tag => tag),
+      authorId: user?._id,
+      createdAt: new Date().toISOString(),
+    };
+
+    try {
+      const res = await fetch("/api/blogs", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      const data = await res.json();
+      if (res.ok) {
+        router.push("/dashboard");
+      } else {
+        setError(data.error || "Failed to create blog");
+      }
+    } catch (err) {
+      setError("Failed to add blog. Please try again.");
+      console.error("Failed to add blog", err);
     }
   };
 
-  const removeImage = () => {
-    setPreviewImage(null);
-    setFormData(prev => ({ ...prev, image: "" }));
-  };
-
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    
-    const newBlog = {
-      id: Date.now(),
-      title: formData.title,
-      content: formData.content,
-      image: formData.image,
-      authorId: user.id,
-      authorName: formData.authorName || user.username,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
-    };
-
-    const existingBlogs = JSON.parse(localStorage.getItem("blogs")) || [];
-    existingBlogs.push(newBlog);
-    localStorage.setItem("blogs", JSON.stringify(existingBlogs));
-    router.push("/dashboard");
-  };
-
-  if (loading) {
-    return (
-      <div className={styles.loadingContainer}>
-        <div className={styles.loadingSpinner}></div>
-        <p>Loading...</p>
-      </div>
-    );
-  }
+  if (loading) return <div className={styles.loading}>Loading...</div>;
 
   return (
     <div className={styles.container}>
-      <header className={styles.header}>
-        <button onClick={() => router.back()} className={styles.backButton}>
-          <FiArrowLeft size={20} />
-          Cancel
-        </button>
+      <div className={styles.card}>
         <h1 className={styles.title}>Create New Blog Post</h1>
-      </header>
+        
+        {error && <div className={styles.error}>{error}</div>}
 
-      <form className={styles.form} onSubmit={handleSubmit}>
-        <div className={styles.formGroup}>
-          <label htmlFor="title" className={styles.label}>Title</label>
-          <input
-            type="text"
-            id="title"
-            name="title"
-            value={formData.title}
-            onChange={handleChange}
-            className={styles.input}
-            placeholder="Enter blog title"
-            required
-          />
-        </div>
-
-        <div className={styles.formGroup}>
-          <label htmlFor="authorName" className={styles.label}>Author Name</label>
-          <input
-            type="text"
-            id="authorName"
-            name="authorName"
-            value={formData.authorName}
-            onChange={handleChange}
-            className={styles.input}
-            placeholder="Enter author name"
-          />
-        </div>
-
-        <div className={styles.formGroup}>
-          <label className={styles.label}>Featured Image</label>
-          <div className={styles.imageUploadContainer}>
-            {previewImage ? (
-              <div className={styles.imagePreviewWrapper}>
-                <img src={previewImage} alt="Preview" className={styles.imagePreview} />
-                <button 
-                  type="button" 
-                  onClick={removeImage}
-                  className={styles.removeImageButton}
-                >
-                  <FiTrash2 size={16} />
-                  Remove
-                </button>
-              </div>
-            ) : (
-              <label className={styles.imageUploadArea}>
-                <FiImage size={24} />
-                <span>Click to upload an image</span>
-                <input
-                  type="file"
-                  accept="image/*"
-                  onChange={handleImageChange}
-                  className={styles.imageInput}
-                />
-              </label>
-            )}
+        <form className={styles.form} onSubmit={handleSubmit}>
+          <div className={styles.formGroup}>
+            <label htmlFor="title" className={styles.label}>Title</label>
+            <input
+              type="text"
+              id="title"
+              name="title"
+              placeholder="Enter blog title"
+              value={formData.title}
+              onChange={handleChange}
+              className={styles.input}
+              required
+            />
           </div>
-        </div>
 
-        <div className={styles.formGroup}>
-          <label htmlFor="content" className={styles.label}>Content</label>
-          <textarea
-            id="content"
-            name="content"
-            value={formData.content}
-            onChange={handleChange}
-            className={styles.textarea}
-            placeholder="Write your blog content here..."
-            rows="12"
-            required
-          />
-        </div>
+          <div className={styles.formGroup}>
+            <label htmlFor="content" className={styles.label}>Content</label>
+            <textarea
+              id="content"
+              name="content"
+              placeholder="Write your blog content here..."
+              value={formData.content}
+              onChange={handleChange}
+              className={styles.textarea}
+              rows={8}
+              required
+            />
+          </div>
 
-        <div className={styles.formActions}>
-          <button type="submit" className={styles.submitButton}>
-            <FiSave size={18} />
-            Publish Blog
-          </button>
-        </div>
-      </form>
+          <div className={styles.formGroup}>
+            <label htmlFor="authorName" className={styles.label}>Author Name</label>
+            <input
+              type="text"
+              id="authorName"
+              name="authorName"
+              placeholder="Author name"
+              value={formData.authorName}
+              onChange={handleChange}
+              className={styles.input}
+              required
+            />
+          </div>
+
+          <div className={styles.formGroup}>
+            <label htmlFor="category" className={styles.label}>Category</label>
+            <input
+              type="text"
+              id="category"
+              name="category"
+              placeholder="e.g. Technology, Lifestyle"
+              value={formData.category}
+              onChange={handleChange}
+              className={styles.input}
+            />
+          </div>
+
+          <div className={styles.formGroup}>
+            <label htmlFor="tags" className={styles.label}>Tags</label>
+            <input
+              type="text"
+              id="tags"
+              name="tags"
+              placeholder="Comma separated tags (e.g. react, javascript)"
+              value={formData.tags}
+              onChange={handleChange}
+              className={styles.input}
+            />
+          </div>
+
+          <div className={styles.checkboxGroup}>
+            <input
+              type="checkbox"
+              id="isPublished"
+              name="isPublished"
+              checked={formData.isPublished}
+              onChange={handleChange}
+              className={styles.checkbox}
+            />
+            <label htmlFor="isPublished" className={styles.checkboxLabel}>
+              Publish immediately
+            </label>
+          </div>
+
+          <div className={styles.buttonGroup}>
+            <button type="submit" className={styles.submitBtn}>
+              Create Blog Post
+            </button>
+            <button 
+              type="button" 
+              className={styles.cancelBtn}
+              onClick={() => router.push("/dashboard")}
+            >
+              Cancel
+            </button>
+          </div>
+        </form>
+      </div>
     </div>
   );
 }
