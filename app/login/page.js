@@ -174,7 +174,7 @@ export default function LoginPage() {
         </div>
 
         <p className={styles.signupLink}>
-          Don't have an account? <a href="/register">Sign up</a>
+          Dont have an account? <a href="/register">Sign up</a>
         </p>
       </div>
     </div>
